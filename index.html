@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shourya's Mini Games</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #121212;
+        color: white;
+        text-align: center;
+        overflow-x: hidden;
+    }
+    header {
+        padding: 20px;
+        font-size: 2em;
+        font-weight: bold;
+        animation: fadeIn 1.2s ease;
+    }
+    .menu {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 50px;
+    }
+    .game-btn {
+        background: #1e1e1e;
+        padding: 20px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s ease, background 0.2s ease;
+        min-width: 200px;
+    }
+    .game-btn:hover {
+        background: #333;
+        transform: scale(1.05);
+    }
+    .game-container {
+        display: none;
+        animation: fadeIn 0.8s ease;
+    }
+    button {
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+        cursor: pointer;
+        font-size: 1em;
+    }
+    button:hover {
+        background: #ff2222;
+    }
+    canvas {
+        background: #222;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+</style>
+</head>
+<body>
+
+<header>🎮 Shourya's Mini Games</header>
+
+<div id="mainMenu" class="menu">
+    <div class="game-btn" onclick="showGame('circleGame')">Perfect Circle</div>
+    <div class="game-btn" onclick="showGame('asteroidGame')">Asteroid Avoider</div>
+    <div class="game-btn" onclick="showGame('reactionGame')">Quick Reaction</div>
+</div>
+
+<!-- Perfect Circle Game -->
+<div id="circleGame" class="game-container">
+    <h2>Perfect Circle</h2>
+    <p>Draw a circle on your mouse and see how close to perfect it is!</p>
+    <canvas id="circleCanvas" width="400" height="400"></canvas>
+    <p id="circleScore"></p>
+    <button onclick="backToMenu()">Back to Menu</button>
+</div>
+
+<!-- Asteroid Avoider -->
+<div id="asteroidGame" class="game-container">
+    <h2>Asteroid Avoider</h2>
+    <canvas id="asteroidCanvas" width="400" height="400"></canvas>
+    <p>Use arrow keys to move. Avoid asteroids!</p>
+    <button onclick="backToMenu()">Back to Menu</button>
+</div>
+
+<!-- Quick Reaction -->
+<div id="reactionGame" class="game-container">
+    <h2>Quick Reaction Time</h2>
+    <p id="reactionStatus">Click when the screen turns green!</p>
+    <div id="reactionArea" style="width:400px;height:200px;background:red;margin:auto;cursor:pointer;"></div>
+    <p id="reactionResult"></p>
+    <button onclick="backToMenu()">Back to Menu</button>
+</div>
+
+<script>
+function showGame(gameId) {
+    document.getElementById("mainMenu").style.display = "none";
+    document.querySelectorAll(".game-container").forEach(div => div.style.display = "none");
+    document.getElementById(gameId).style.display = "block";
+    if (gameId === "circleGame") startCircleGame();
+    if (gameId === "asteroidGame") startAsteroidGame();
+    if (gameId === "reactionGame") startReactionGame();
+}
+
+function backToMenu() {
+    document.getElementById("mainMenu").style.display = "flex";
+    document.querySelectorAll(".game-container").forEach(div => div.style.display = "none");
+}
+
+// Perfect Circle
+let drawing = false, points = [];
+function startCircleGame() {
+    const canvas = document.getElementById("circleCanvas");
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    points = [];
+    canvas.onmousedown = () => { drawing = true; points = []; };
+    canvas.onmouseup = () => { drawing = false; scoreCircle(); };
+    canvas.onmousemove = e => {
+        if (!drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        points.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.beginPath();
+        points.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+    };
+}
+function scoreCircle() {
+    if (points.length < 10) return;
+    let cx = points.reduce((a,p) => a + p.x, 0) / points.length;
+    let cy = points.reduce((a,p) => a + p.y, 0) / points.length;
+    let avgR = points.reduce((a,p) => a + Math.hypot(p.x - cx, p.y - cy), 0) / points.length;
+    let variance = points.reduce((a,p) => a + Math.abs(Math.hypot(p.x - cx, p.y - cy) - avgR), 0) / points.length;
+    let score = Math.max(0, 100 - variance);
+    document.getElementById("circleScore").innerText = `Your circle is ${score.toFixed(1)}% perfect!`;
+}
+
+// Asteroid Avoider
+function startAsteroidGame() {
+    const canvas = document.getElementById("asteroidCanvas");
+    const ctx = canvas.getContext("2d");
+    let ship = {x: 180, y: 350, size: 20};
+    let asteroids = [];
+    let keys = {};
+    document.onkeydown = e => keys[e.key] = true;
+    document.onkeyup = e => keys[e.key] = false;
+    function spawnAsteroid() {
+        asteroids.push({x: Math.random()*380, y: -20, size: 20});
+    }
+    function update() {
+        ctx.clearRect(0,0,400,400);
+        ctx.fillStyle = "white";
+        ctx.fillRect(ship.x, ship.y, ship.size, ship.size);
+        if (keys["ArrowLeft"]) ship.x -= 4;
+        if (keys["ArrowRight"]) ship.x += 4;
+        if (ship.x < 0) ship.x = 0;
+        if (ship.x > 380) ship.x = 380;
+        ctx.fillStyle = "red";
+        for (let a of asteroids) {
+            a.y += 3;
+            ctx.fillRect(a.x, a.y, a.size, a.size);
+            if (a.y > 400) a.y = -20, a.x = Math.random()*380;
+            if (a.x < ship.x+ship.size && a.x+a.size > ship.x && a.y < ship.y+ship.size && a.y+a.size > ship.y) {
+                alert("Game Over!");
+                asteroids = [];
+                ship.x = 180;
+            }
+        }
+        requestAnimationFrame(update);
+    }
+    setInterval(spawnAsteroid, 800);
+    update();
+}
+
+// Reaction Time
+function startReactionGame() {
+    let status = document.getElementById("reactionStatus");
+    let area = document.getElementById("reactionArea");
+    let result = document.getElementById("reactionResult");
+    let startTime;
+    area.style.background = "red";
+    status.innerText = "Wait for green...";
+    result.innerText = "";
+    let timeout = setTimeout(() => {
+        area.style.background = "green";
+        status.innerText = "CLICK!";
+        startTime = Date.now();
+    }, Math.random()*3000 + 2000);
+    area.onclick = () => {
+        if (area.style.background === "green") {
+            let time = Date.now() - startTime;
+            result.innerText = `Your reaction time: ${time} ms`;
+        } else {
+            result.innerText = "Too early!";
+            clearTimeout(timeout);
+        }
+    };
+}
+</script>
+</body>
+</html>
